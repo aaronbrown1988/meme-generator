@@ -229,7 +229,7 @@ func (c *Client) calculateOptimalFontSize(dc *gg.Context, text string, width, he
 		}
 
 		textWidth, _ := dc.MeasureString(text)
-		
+
 		if textWidth <= targetWidth {
 			// Text fits, try slightly larger
 			if fontSize >= maxFontSize {
