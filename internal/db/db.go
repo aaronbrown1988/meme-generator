@@ -35,6 +35,8 @@ func (db *DB) createTables() error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			prompt TEXT NOT NULL,
 			image_path TEXT NOT NULL,
+			top_text TEXT DEFAULT '',
+			bottom_text TEXT DEFAULT '',
 			status TEXT NOT NULL,
 			error_message TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -45,20 +47,22 @@ func (db *DB) createTables() error {
 		);`,
 		`INSERT OR IGNORE INTO settings (key, value) 
 		 VALUES ('system_prompt', 'You are a creative meme generator. Generate images based on the following description:');`,
+		// Migration: Add text columns if they don't exist (for existing databases)
+		`ALTER TABLE generations ADD COLUMN top_text TEXT DEFAULT '';`,
+		`ALTER TABLE generations ADD COLUMN bottom_text TEXT DEFAULT '';`,
 	}
 
 	for _, query := range queries {
-		if _, err := db.Exec(query); err != nil {
-			return err
-		}
+		// Ignore errors for ALTER TABLE (columns might already exist)
+		db.Exec(query)
 	}
 	return nil
 }
 
 func (db *DB) InsertGeneration(prompt, imagePath, status, errorMessage string) (int64, error) {
 	query := `
-	INSERT INTO generations (prompt, image_path, status, error_message)
-	VALUES (?, ?, ?, ?)
+	INSERT INTO generations (prompt, image_path, top_text, bottom_text, status, error_message)
+	VALUES (?, ?, '', '', ?, ?)
 	`
 
 	result, err := db.Exec(query, prompt, imagePath, status, errorMessage)
@@ -80,9 +84,20 @@ func (db *DB) UpdateGenerationStatus(id int64, status, imagePath, errorMessage s
 	return err
 }
 
+func (db *DB) UpdateGenerationText(id int64, topText, bottomText string) error {
+	query := `
+	UPDATE generations
+	SET top_text = ?, bottom_text = ?
+	WHERE id = ?
+	`
+
+	_, err := db.Exec(query, topText, bottomText, id)
+	return err
+}
+
 func (db *DB) GetGeneration(id int64) (*Generation, error) {
 	query := `
-	SELECT id, prompt, image_path, status, error_message, created_at
+	SELECT id, prompt, image_path, top_text, bottom_text, status, error_message, created_at
 	FROM generations
 	WHERE id = ?
 	`
@@ -92,6 +107,8 @@ func (db *DB) GetGeneration(id int64) (*Generation, error) {
 		&gen.ID,
 		&gen.Prompt,
 		&gen.ImagePath,
+		&gen.TopText,
+		&gen.BottomText,
 		&gen.Status,
 		&gen.ErrorMessage,
 		&gen.CreatedAt,
@@ -106,7 +123,7 @@ func (db *DB) GetGeneration(id int64) (*Generation, error) {
 
 func (db *DB) ListGenerations(limit int) ([]Generation, error) {
 	query := `
-	SELECT id, prompt, image_path, status, error_message, created_at
+	SELECT id, prompt, image_path, top_text, bottom_text, status, error_message, created_at
 	FROM generations
 	ORDER BY created_at DESC
 	LIMIT ?
@@ -125,6 +142,8 @@ func (db *DB) ListGenerations(limit int) ([]Generation, error) {
 			&gen.ID,
 			&gen.Prompt,
 			&gen.ImagePath,
+			&gen.TopText,
+			&gen.BottomText,
 			&gen.Status,
 			&gen.ErrorMessage,
 			&gen.CreatedAt,

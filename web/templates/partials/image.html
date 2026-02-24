@@ -15,6 +15,17 @@
         <figure>
             <img src="/images/{{.Generation.ImagePath}}" alt="Generated meme">
         </figure>
+        {{if or .Generation.TopText .Generation.BottomText}}
+        <div class="meme-text-info">
+            <p><small><strong>Generated Text:</strong></small></p>
+            {{if .Generation.TopText}}
+            <p><small>Top: "{{.Generation.TopText}}"</small></p>
+            {{end}}
+            {{if .Generation.BottomText}}
+            <p><small>Bottom: "{{.Generation.BottomText}}"</small></p>
+            {{end}}
+        </div>
+        {{end}}
     {{else if eq .Generation.Status "failed"}}
         <p class="error">Error: {{.Generation.ErrorMessage}}</p>
     {{end}}

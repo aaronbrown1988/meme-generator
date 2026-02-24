@@ -82,6 +82,16 @@ func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Step 1: Generate meme text using gemma3:270m
+	topText, bottomText, textErr := h.ollama.GenerateText(prompt)
+	if textErr != nil {
+		log.Printf("Warning: Text generation failed (will continue without text): %v", textErr)
+		// Continue with image generation even if text fails (graceful degradation)
+	} else {
+		log.Printf("Generated text - Top: %s, Bottom: %s", topText, bottomText)
+	}
+
+	// Step 2: Generate image using flux2-klein
 	systemPrompt, err := h.db.GetSetting("system_prompt")
 	if err != nil {
 		log.Printf("Error fetching system prompt: %v", err)
@@ -92,12 +102,12 @@ func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error generating image: %v", err)
 		h.db.UpdateGenerationStatus(id, db.StatusFailed, "", err.Error())
-		
+
 		gen, _ := h.db.GetGeneration(id)
 		data := map[string]interface{}{
 			"Generation": gen,
 		}
-		
+
 		w.Header().Set("Content-Type", "text/html")
 		if err := h.tmpl.ExecuteTemplate(w, "image.html", data); err != nil {
 			log.Printf("Error executing template: %v", err)
@@ -106,8 +116,25 @@ func (h *Handler) Generate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Step 3: Overlay text on image if text generation succeeded
+	if textErr == nil && (topText != "" || bottomText != "") {
+		imagePath := filepath.Join(h.imageDir, filename)
+		if overlayErr := h.ollama.OverlayMemeText(imagePath, topText, bottomText); overlayErr != nil {
+			log.Printf("Warning: Failed to overlay text on image: %v", overlayErr)
+			// Continue anyway - image was generated successfully
+		}
+	}
+
+	// Step 4: Update database with results
 	if err := h.db.UpdateGenerationStatus(id, db.StatusSuccess, filename, ""); err != nil {
 		log.Printf("Error updating generation status: %v", err)
+	}
+
+	// Save generated text to database
+	if textErr == nil {
+		if err := h.db.UpdateGenerationText(id, topText, bottomText); err != nil {
+			log.Printf("Error updating generation text: %v", err)
+		}
 	}
 
 	gen, err := h.db.GetGeneration(id)

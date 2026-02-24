@@ -17,6 +17,12 @@
             <figure>
                 <img src="/images/{{.ImagePath}}" alt="{{.Prompt}}" loading="lazy">
             </figure>
+            {{if or .TopText .BottomText}}
+            <div class="meme-text-info">
+                {{if .TopText}}<small>Top: "{{.TopText}}"</small><br>{{end}}
+                {{if .BottomText}}<small>Bottom: "{{.BottomText}}"</small>{{end}}
+            </div>
+            {{end}}
         {{end}}
     </article>
     {{end}}
