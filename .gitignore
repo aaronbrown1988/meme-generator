@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cmd/server/server
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated images
+generated/*
+!generated/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

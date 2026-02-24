@@ -1,0 +1,26 @@
+{{if .Generations}}
+<div class="history-grid">
+    {{range .Generations}}
+    <article class="history-item">
+        <div class="history-header">
+            <small>{{.CreatedAt.Format "Jan 02, 15:04"}}</small>
+            {{if eq .Status "processing"}}
+                <span class="badge processing">⏳</span>
+            {{else if eq .Status "success"}}
+                <span class="badge success">✅</span>
+            {{else if eq .Status "failed"}}
+                <span class="badge failed">❌</span>
+            {{end}}
+        </div>
+        <p class="prompt">{{.Prompt}}</p>
+        {{if eq .Status "success"}}
+            <figure>
+                <img src="/images/{{.ImagePath}}" alt="{{.Prompt}}" loading="lazy">
+            </figure>
+        {{end}}
+    </article>
+    {{end}}
+</div>
+{{else}}
+<p>No generations yet. Create your first meme above!</p>
+{{end}}

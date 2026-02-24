@@ -1,0 +1,22 @@
+<div class="settings-content">
+    {{if .Success}}
+    <div class="success-message">
+        ✅ Settings saved successfully!
+    </div>
+    {{end}}
+    
+    <form hx-post="/settings/update" 
+          hx-target="#settings-modal-content"
+          hx-swap="innerHTML">
+        <label for="system_prompt">
+            System Prompt:
+            <small>This text will be prepended to every meme generation request</small>
+            <textarea id="system_prompt" 
+                      name="system_prompt" 
+                      rows="5" 
+                      placeholder="e.g., You are a creative meme generator..."
+                      >{{.SystemPrompt}}</textarea>
+        </label>
+        <button type="submit">Save Settings</button>
+    </form>
+</div>

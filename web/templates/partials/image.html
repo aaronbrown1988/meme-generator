@@ -1,0 +1,22 @@
+{{if .Generation}}
+<article class="generation-result">
+    <header>
+        <strong>Status:</strong> 
+        {{if eq .Generation.Status "success"}}
+            <span class="status-success">✅ Success</span>
+        {{else if eq .Generation.Status "failed"}}
+            <span class="status-failed">❌ Failed</span>
+        {{end}}
+    </header>
+    
+    <p><strong>Prompt:</strong> {{.Generation.Prompt}}</p>
+    
+    {{if eq .Generation.Status "success"}}
+        <figure>
+            <img src="/images/{{.Generation.ImagePath}}" alt="Generated meme">
+        </figure>
+    {{else if eq .Generation.Status "failed"}}
+        <p class="error">Error: {{.Generation.ErrorMessage}}</p>
+    {{end}}
+</article>
+{{end}}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Meme Generator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+    <main class="container">
+        <hgroup>
+            <h1>🎨 AI Meme Generator</h1>
+            <p>Create memes using AI-powered image generation</p>
+        </hgroup>
+
+        <div class="header-actions">
+            <button class="secondary" 
+                    hx-get="/settings" 
+                    hx-target="#settings-modal-content"
+                    hx-swap="innerHTML"
+                    onclick="document.getElementById('settings-modal').showModal()">
+                ⚙️ Settings
+            </button>
+        </div>
+
+        <section class="generator">
+            <h2>Generate New Meme</h2>
+            <form hx-post="/generate" 
+                  hx-target="#result" 
+                  hx-swap="innerHTML"
+                  hx-indicator="#loading">
+                <label for="prompt">
+                    Describe your meme:
+                    <input type="text" 
+                           id="prompt" 
+                           name="prompt" 
+                           placeholder="e.g., A cat wearing sunglasses with text 'Deal with it'"
+                           required
+                           autofocus>
+                </label>
+                <button type="submit">Generate Meme</button>
+            </form>
+
+            <div id="loading" class="htmx-indicator">
+                <article aria-busy="true">Generating your meme... This may take a moment.</article>
+            </div>
+
+            <div id="result"></div>
+        </section>
+
+        <section class="history">
+            <h2>Recent Generations</h2>
+            <div id="history-list" 
+                 hx-get="/history" 
+                 hx-trigger="load, every 5s"
+                 hx-swap="innerHTML">
+                {{template "history.html" .}}
+            </div>
+        </section>
+    </main>
+
+    <dialog id="settings-modal">
+        <article>
+            <header>
+                <button aria-label="Close" 
+                        rel="prev" 
+                        onclick="document.getElementById('settings-modal').close()"></button>
+                <h3>Settings</h3>
+            </header>
+            <div id="settings-modal-content" hx-get="/settings" hx-trigger="load">
+                Loading...
+            </div>
+        </article>
+    </dialog>
+
+    <footer class="container">
+        <small>Powered by Ollama & HTMX</small>
+    </footer>
+</body>
+</html>
