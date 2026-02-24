@@ -4,7 +4,9 @@ A web application that generates memes using AI-powered image generation via Oll
 
 ## Features
 
-- 🤖 AI-powered image generation using Ollama (flux-klein model)
+- 🤖 AI-powered image generation using Ollama (flux2-klein model)
+- 📝 AI-powered meme text generation using Ollama (gemma3:270m model)
+- ✨ Automatic text overlay with dynamic sizing to fit image width
 - ⚡ Real-time updates with HTMX (no page reloads)
 - 📊 Generation history tracking
 - 💾 SQLite database for persistent storage
@@ -25,9 +27,14 @@ Before running this application, make sure you have:
    # Install Ollama (if not already installed)
    # Visit: https://ollama.ai/download
    
-   # Pull the flux2-klein model
-   ollama pull x/flux2-klein
+   # Pull the required models
+   ollama pull x/flux2-klein    # For image generation
+   ollama pull gemma3:270m      # For meme text generation
    ```
+
+3. **Impact Font** (optional, for classic meme styling)
+   - Download Impact.ttf and place in `assets/fonts/Impact.ttf`
+   - Falls back to embedded Go Mono Bold if not present
 
 ## Installation
 
@@ -92,11 +99,16 @@ meme-generator/
 ## How It Works
 
 1. **User Input**: User enters a text prompt describing their desired meme
-2. **Processing**: The server calls `ollama run x/flux-klein` with the prompt
-3. **Generation**: Ollama generates the image and saves it to the current directory with a descriptive filename
-4. **Detection**: The app parses Ollama's output to find "Image saved to: <filename>" and extracts the filename
-5. **Storage**: Image is moved from CWD to the `generated/` directory, metadata stored in SQLite
-6. **Display**: HTMX updates the page and displays the image when ready
+2. **Text Generation**: The server calls `ollama run gemma3:270m` to generate top and bottom meme text in JSON format
+3. **Image Generation**: The server calls `ollama run x/flux2-klein` with the prompt to generate the base image
+4. **Text Overlay**: The app overlays the generated text on the image with:
+   - Dynamic font sizing based on text length and image width
+   - Classic meme styling (white text with black outline, uppercase)
+   - Automatic scaling to ensure text fits within 90% of image width
+5. **Detection**: The app parses Ollama's output to find "Image saved to: <filename>" and extracts the filename
+6. **Storage**: Image is moved from CWD to the `generated/` directory, metadata stored in SQLite
+7. **Display**: HTMX updates the page and displays the meme with text overlay
+8. **Graceful Degradation**: If text generation fails, displays the image without text overlay
 
 ## Technology Stack
 
@@ -104,7 +116,8 @@ meme-generator/
 - **Database**: SQLite (via modernc.org/sqlite)
 - **Frontend**: HTMX for dynamic updates
 - **Styling**: Pico.css for clean, classless CSS
-- **AI**: Ollama with flux-klein model
+- **AI**: Ollama with flux2-klein (image generation) and gemma3:270m (text generation)
+- **Image Processing**: fogleman/gg for text overlay and rendering
 
 ## Configuration
 
@@ -129,8 +142,17 @@ Default configuration values in `cmd/server/main.go`:
 
 ### Ollama command fails
 - Ensure Ollama is installed and running: `ollama serve`
-- Verify the model is available: `ollama list`
-- Pull the model if needed: `ollama pull x/flux-klein`
+- Verify the models are available: `ollama list`
+- Pull the models if needed:
+  ```bash
+  ollama pull x/flux2-klein
+  ollama pull gemma3:270m
+  ```
+
+### Text not appearing on images
+- Check that gemma3:270m model is installed: `ollama list`
+- Text generation failures are logged but don't prevent image generation
+- Check server logs for "Warning: Text generation failed" messages
 
 ### Port already in use
 - Change the port in `cmd/server/main.go` (default: 8080)

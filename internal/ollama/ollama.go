@@ -173,25 +173,21 @@ func (c *Client) OverlayMemeText(imagePath, topText, bottomText string) error {
 	width := float64(dc.Width())
 	height := float64(dc.Height())
 
-	// Load font (try Impact.ttf first, fallback to gomonobold)
-	fontSize := height / 10 // Dynamic font size based on image height
-	if fontSize < 20 {
-		fontSize = 20
-	} else if fontSize > 100 {
-		fontSize = 100
-	}
-
-	if err := c.loadFont(dc, fontSize); err != nil {
-		return fmt.Errorf("failed to load font: %w", err)
-	}
-
 	// Draw top text
 	if topText != "" {
+		fontSize := c.calculateOptimalFontSize(dc, strings.ToUpper(topText), width, height)
+		if err := c.loadFont(dc, fontSize); err != nil {
+			return fmt.Errorf("failed to load font for top text: %w", err)
+		}
 		c.drawTextWithOutline(dc, strings.ToUpper(topText), width/2, height*0.1)
 	}
 
-	// Draw bottom text
+	// Draw bottom text (recalculate font size for different text length)
 	if bottomText != "" {
+		fontSize := c.calculateOptimalFontSize(dc, strings.ToUpper(bottomText), width, height)
+		if err := c.loadFont(dc, fontSize); err != nil {
+			return fmt.Errorf("failed to load font for bottom text: %w", err)
+		}
 		c.drawTextWithOutline(dc, strings.ToUpper(bottomText), width/2, height*0.9)
 	}
 
@@ -207,6 +203,58 @@ func (c *Client) OverlayMemeText(imagePath, topText, bottomText string) error {
 	}
 
 	return nil
+}
+
+// calculateOptimalFontSize calculates font size that fits text within image width
+func (c *Client) calculateOptimalFontSize(dc *gg.Context, text string, width, height float64) float64 {
+	// Start with height-based calculation
+	maxFontSize := height / 10
+	if maxFontSize < 20 {
+		maxFontSize = 20
+	} else if maxFontSize > 120 {
+		maxFontSize = 120
+	}
+
+	// Target width is 90% of image width (5% padding on each side)
+	targetWidth := width * 0.9
+
+	// Binary search for optimal font size that fits within target width
+	minSize := 12.0
+	fontSize := maxFontSize
+
+	for iteration := 0; iteration < 10; iteration++ {
+		if err := c.loadFont(dc, fontSize); err != nil {
+			// If font loading fails, return the current size
+			break
+		}
+
+		textWidth, _ := dc.MeasureString(text)
+		
+		if textWidth <= targetWidth {
+			// Text fits, try slightly larger
+			if fontSize >= maxFontSize {
+				break
+			}
+			minSize = fontSize
+			fontSize = (fontSize + maxFontSize) / 2
+		} else {
+			// Text too wide, reduce size
+			maxFontSize = fontSize
+			fontSize = (minSize + fontSize) / 2
+		}
+
+		// If we've converged, stop iterating
+		if maxFontSize-minSize < 1 {
+			break
+		}
+	}
+
+	// Ensure minimum readable size
+	if fontSize < 16 {
+		fontSize = 16
+	}
+
+	return fontSize
 }
 
 // loadFont tries to load Impact.ttf, falls back to embedded gomonobold
