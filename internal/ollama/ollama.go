@@ -79,15 +79,15 @@ func extractFilename(output string) (string, error) {
 	return filename, nil
 }
 
-// GenerateText calls Ollama with gemma3:270m to generate meme text
+// GenerateText calls Ollama with glm-4.7:cloud to generate meme text
 func (c *Client) GenerateText(userPrompt string) (topText, bottomText string, err error) {
 	// Construct prompt asking for JSON meme text
 	fullPrompt := fmt.Sprintf(
-		"Generate meme text for: %s\n\nRespond ONLY with valid JSON in this exact format: {\"topText\":\"text here\",\"bottomText\":\"text here\"}. Keep text SHORT and FUNNY.",
+		"Generate meme text for: %s\n\nRespond ONLY with valid JSON in this exact format: {\"topText\":\"text here\",\"bottomText\":\"text here\"}. Keep text SHORT and FUNNY. ",
 		userPrompt,
 	)
 
-	cmd := exec.Command("ollama", "run", "gemma3:270m", fullPrompt)
+	cmd := exec.Command("ollama", "run", "glm-4.7:cloud", "--hidethinking", "--nowordwrap", "--format","json", fullPrompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
