@@ -87,7 +87,7 @@ func (c *Client) GenerateText(userPrompt string) (topText, bottomText string, er
 		userPrompt,
 	)
 
-	cmd := exec.Command("ollama", "run", "glm-4.7:cloud", "--hidethinking", "--nowordwrap", "--format","json", fullPrompt)
+	cmd := exec.Command("ollama", "run", "gemma4:latest", "--hidethinking", "--nowordwrap", "--format","json", fullPrompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
