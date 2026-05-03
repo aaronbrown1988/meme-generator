@@ -17,10 +17,10 @@
             <figure>
                 <img src="/images/{{.ImagePath}}" alt="{{.Prompt}}" loading="lazy">
             </figure>
-            {{if or .TopText .BottomText}}
+            {{if or .Caption.Top .Caption.Bottom}}
             <div class="meme-text-info">
-                {{if .TopText}}<small>Top: "{{.TopText}}"</small><br>{{end}}
-                {{if .BottomText}}<small>Bottom: "{{.BottomText}}"</small>{{end}}
+                {{if .Caption.Top}}<small>Top: "{{.Caption.Top}}"</small><br>{{end}}
+                {{if .Caption.Bottom}}<small>Bottom: "{{.Caption.Bottom}}"</small>{{end}}
             </div>
             {{end}}
         {{end}}

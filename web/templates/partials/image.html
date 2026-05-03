@@ -1,28 +1,35 @@
 {{if .Generation}}
-<article class="generation-result">
+<article class="generation-result"
+         {{if eq .Generation.Status "processing"}}
+         hx-get="/generation?id={{.Generation.ID}}"
+         hx-trigger="load delay:1500ms"
+         hx-swap="outerHTML"
+         {{end}}>
     <header>
-        <strong>Status:</strong> 
-        {{if eq .Generation.Status "success"}}
+        <strong>Status:</strong>
+        {{if eq .Generation.Status "processing"}}
+            <span class="status-processing" aria-busy="true">⏳ Generating…</span>
+        {{else if eq .Generation.Status "success"}}
             <span class="status-success">✅ Success</span>
         {{else if eq .Generation.Status "failed"}}
             <span class="status-failed">❌ Failed</span>
         {{end}}
     </header>
-    
+
     <p><strong>Prompt:</strong> {{.Generation.Prompt}}</p>
-    
+
     {{if eq .Generation.Status "success"}}
         <figure>
             <img src="/images/{{.Generation.ImagePath}}" alt="Generated meme">
         </figure>
-        {{if or .Generation.TopText .Generation.BottomText}}
+        {{if or .Generation.Caption.Top .Generation.Caption.Bottom}}
         <div class="meme-text-info">
-            <p><small><strong>Generated Text:</strong></small></p>
-            {{if .Generation.TopText}}
-            <p><small>Top: "{{.Generation.TopText}}"</small></p>
+            <p><small><strong>Caption:</strong></small></p>
+            {{if .Generation.Caption.Top}}
+            <p><small>Top: "{{.Generation.Caption.Top}}"</small></p>
             {{end}}
-            {{if .Generation.BottomText}}
-            <p><small>Bottom: "{{.Generation.BottomText}}"</small></p>
+            {{if .Generation.Caption.Bottom}}
+            <p><small>Bottom: "{{.Generation.Caption.Bottom}}"</small></p>
             {{end}}
         </div>
         {{end}}
