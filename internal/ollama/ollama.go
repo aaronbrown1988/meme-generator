@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -59,12 +60,14 @@ func (c *Client) GenerateImage(prompt, systemPrompt string) (string, error) {
 		return "", fmt.Errorf("generated image not found at: %s", cwdPath)
 	}
 
-	destPath := filepath.Join(c.outputDir, filename)
+	newFileName := fmt.Sprintf("%x.png", md5.Sum([]byte(prompt)))
+	destPath := filepath.Join(c.outputDir, newFileName)
+
 	if err := os.Rename(cwdPath, destPath); err != nil {
 		return "", fmt.Errorf("failed to move image to %s: %w", destPath, err)
 	}
 
-	return filename, nil
+	return newFileName, nil
 }
 
 func extractFilename(output string) (string, error) {
@@ -87,7 +90,7 @@ func (c *Client) GenerateText(userPrompt string) (topText, bottomText string, er
 		userPrompt,
 	)
 
-	cmd := exec.Command("ollama", "run", "gemma4:latest", "--hidethinking", "--nowordwrap", "--format","json", fullPrompt)
+	cmd := exec.Command("ollama", "run", "gemma4:latest", "--hidethinking", "--nowordwrap", "--format", "json", fullPrompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

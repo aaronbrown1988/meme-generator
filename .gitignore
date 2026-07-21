@@ -5,6 +5,7 @@
 *.so
 *.dylib
 cmd/server/server
+meme-server
 
 # Test binary
 *.test
