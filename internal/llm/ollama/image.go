@@ -4,6 +4,7 @@ package ollama
 
 import (
 	"bytes"
+	"crypto/md5"
 	"fmt"
 	"os"
 	"os/exec"
@@ -64,14 +65,18 @@ func (a *ImageAdapter) Generate(prompt, systemPrompt string) (string, error) {
 		return "", fmt.Errorf("generated image not found at: %s", srcPath)
 	}
 
-	destPath := filepath.Join(a.OutputDir, filename)
+	// Name the file after a hash of the prompt rather than whatever
+	// ollama called it, since ollama's own naming isn't guaranteed
+	// unique across generations.
+	destFilename := fmt.Sprintf("%x.png", md5.Sum([]byte(prompt)))
+	destPath := filepath.Join(a.OutputDir, destFilename)
 	if err := os.Rename(srcPath, destPath); err != nil {
 		if cpErr := copyFile(srcPath, destPath); cpErr != nil {
 			return "", fmt.Errorf("move image to %s: %w (copy fallback: %v)", destPath, err, cpErr)
 		}
 	}
 
-	return filename, nil
+	return destFilename, nil
 }
 
 var imageSavedRE = regexp.MustCompile(`Image saved to:\s+(.+\.png)`)
