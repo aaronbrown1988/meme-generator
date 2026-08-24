@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"meme-generator/internal/meme"
 )
 
 // ImageAdapter satisfies llm.ImageGenerator by invoking
@@ -28,10 +30,7 @@ func NewImageAdapter(outputDir string) *ImageAdapter {
 }
 
 func (a *ImageAdapter) Generate(prompt, systemPrompt string) (string, error) {
-	fullPrompt := prompt
-	if systemPrompt != "" {
-		fullPrompt = systemPrompt + "\n\n" + prompt
-	}
+	fullPrompt := meme.BuildImagePrompt(prompt, systemPrompt)
 
 	tmpDir, err := os.MkdirTemp("", "meme-gen-*")
 	if err != nil {

@@ -57,5 +57,5 @@ type ImageGenerator interface {
 // Failure is non-fatal — the Pipeline degrades to an un-captioned meme
 // when this returns an error.
 type CaptionWriter interface {
-	Write(prompt string) (Caption, error)
+	Write(prompt, systemPrompt string) (Caption, error)
 }

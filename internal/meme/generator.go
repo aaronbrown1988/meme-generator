@@ -7,13 +7,44 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"meme-generator/internal/caption"
 )
 
-// SystemPromptKey is the settings key the Pipeline reads to construct
-// the image prompt's system preamble.
-const SystemPromptKey = "system_prompt"
+// ImageSystemPromptKey and CaptionSystemPromptKey are the settings keys
+// the Pipeline reads to construct the system preamble for image
+// generation and caption writing respectively. They are set
+// independently since the two steps use different models with
+// different concerns (visual description vs. joke writing).
+const (
+	ImageSystemPromptKey   = "system_prompt"
+	CaptionSystemPromptKey = "caption_system_prompt"
+)
+
+// Settings keys and values controlling which LLM provider generates
+// captions and images. ProviderKey selects between ProviderOllama
+// (the local Ollama CLI) and ProviderOpenRouter (the OpenRouter API).
+// The two model keys hold the model identifier to use when
+// ProviderOpenRouter is selected.
+const (
+	ProviderKey             = "provider"
+	OpenRouterModelKey      = "openrouter_model"
+	OpenRouterImageModelKey = "openrouter_image_model"
+
+	ProviderOllama     = "ollama"
+	ProviderOpenRouter = "openrouter"
+)
+
+// Default OpenRouter model identifiers. These are the single source of
+// truth for "what model do we use when none is configured" — the store
+// migration seeds settings rows with these values, and the router
+// falls back to them if a row is somehow missing or empty, so the two
+// can't drift apart.
+const (
+	DefaultOpenRouterModel      = "openai/gpt-4o-mini"
+	DefaultOpenRouterImageModel = "bytedance-seed/seedream-4.5"
+)
 
 // Store is the persistence port the Pipeline depends on.
 type Store interface {
@@ -126,47 +157,70 @@ func (g *Generator) Get(id int64) (Generation, error) {
 // logged and folded into the persisted Generation; run never returns
 // them.
 func (g *Generator) run(id int64) {
+	runStart := time.Now()
+	log.Printf("pipeline[%d]: starting", id)
+
 	gen, err := g.store.GetGeneration(id)
 	if err != nil {
-		log.Printf("pipeline: load generation %d: %v", id, err)
+		log.Printf("pipeline[%d]: load generation: %v", id, err)
 		return
 	}
 
 	// Step 1: Caption (non-fatal on failure).
-	cap, capErr := g.captions.Write(gen.Prompt)
+	stepStart := time.Now()
+	captionSystemPrompt, err := g.store.GetSetting(CaptionSystemPromptKey)
+	if err != nil {
+		log.Printf("pipeline[%d]: read caption system prompt: %v", id, err)
+		captionSystemPrompt = ""
+	}
+	log.Printf("pipeline[%d]: caption-write starting", id)
+	cap, capErr := g.captions.Write(gen.Prompt, captionSystemPrompt)
 	if capErr != nil {
-		log.Printf("pipeline: caption write for %d failed (continuing): %v", id, capErr)
+		log.Printf("pipeline[%d]: caption-write failed after %s (continuing without caption): %v", id, time.Since(stepStart).Round(time.Millisecond), capErr)
 		cap = Caption{}
+	} else {
+		log.Printf("pipeline[%d]: caption-write succeeded in %s", id, time.Since(stepStart).Round(time.Millisecond))
 	}
 
 	// Step 2: System prompt for image generation.
-	systemPrompt, err := g.store.GetSetting(SystemPromptKey)
+	imageSystemPrompt, err := g.store.GetSetting(ImageSystemPromptKey)
 	if err != nil {
-		log.Printf("pipeline: read system prompt: %v", err)
-		systemPrompt = ""
+		log.Printf("pipeline[%d]: read image system prompt: %v", id, err)
+		imageSystemPrompt = ""
 	}
 
 	// Step 3: Image (terminal on failure).
-	filename, err := g.images.Generate(gen.Prompt, systemPrompt)
+	stepStart = time.Now()
+	log.Printf("pipeline[%d]: image-generate starting", id)
+	filename, err := g.images.Generate(gen.Prompt, imageSystemPrompt)
 	if err != nil {
-		log.Printf("pipeline: image generate for %d failed: %v", id, err)
-		_ = g.store.UpdateGenerationStatus(id, StatusFailed, "", err.Error())
+		log.Printf("pipeline[%d]: image-generate failed after %s (terminal): %v", id, time.Since(stepStart).Round(time.Millisecond), err)
+		if err := g.store.UpdateGenerationStatus(id, StatusFailed, "", err.Error()); err != nil {
+			log.Printf("pipeline[%d]: update status to failed: %v", id, err)
+		}
 		return
 	}
+	log.Printf("pipeline[%d]: image-generate succeeded in %s (file=%s)", id, time.Since(stepStart).Round(time.Millisecond), filename)
 
 	// Step 4: Render caption onto the image (non-fatal on failure).
 	if !cap.Empty() {
+		stepStart = time.Now()
+		log.Printf("pipeline[%d]: caption-render starting", id)
 		if err := caption.Render(filepath.Join(g.imageDir, filename), cap.Top, cap.Bottom); err != nil {
-			log.Printf("pipeline: caption render for %d failed (continuing): %v", id, err)
+			log.Printf("pipeline[%d]: caption-render failed after %s (continuing, image keeps no text overlay): %v", id, time.Since(stepStart).Round(time.Millisecond), err)
+		} else {
+			log.Printf("pipeline[%d]: caption-render succeeded in %s", id, time.Since(stepStart).Round(time.Millisecond))
 		}
 	}
 
 	if err := g.store.UpdateGenerationStatus(id, StatusSuccess, filename, ""); err != nil {
-		log.Printf("pipeline: update status for %d: %v", id, err)
+		log.Printf("pipeline[%d]: update status to success: %v", id, err)
 	}
 	if capErr == nil && !cap.Empty() {
 		if err := g.store.UpdateGenerationCaption(id, cap); err != nil {
-			log.Printf("pipeline: update caption for %d: %v", id, err)
+			log.Printf("pipeline[%d]: update caption: %v", id, err)
 		}
 	}
+
+	log.Printf("pipeline[%d]: finished in %s", id, time.Since(runStart).Round(time.Millisecond))
 }

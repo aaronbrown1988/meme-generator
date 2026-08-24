@@ -8,8 +8,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	orsdk "github.com/OpenRouterTeam/go-sdk"
+
 	"meme-generator/internal/http"
 	"meme-generator/internal/llm/ollama"
+	"meme-generator/internal/llm/router"
 	"meme-generator/internal/meme"
 	"meme-generator/internal/store"
 )
@@ -33,10 +36,21 @@ func main() {
 	}
 	defer st.Close()
 
+	orClient := orsdk.New(orsdk.WithSecurity(os.Getenv("OPENROUTER_API_KEY")))
+
 	pipeline := meme.NewGenerator(meme.Config{
-		Store:    st,
-		Images:   ollama.NewImageAdapter(generatedDir),
-		Captions: ollama.NewCaptionAdapter(),
+		Store: st,
+		Images: &router.ImageGenerator{
+			Settings:   st,
+			Ollama:     ollama.NewImageAdapter(generatedDir),
+			OpenRouter: orClient,
+			OutputDir:  generatedDir,
+		},
+		Captions: &router.CaptionWriter{
+			Settings:   st,
+			Ollama:     ollama.NewCaptionAdapter(),
+			OpenRouter: orClient,
+		},
 		ImageDir: generatedDir,
 	})
 

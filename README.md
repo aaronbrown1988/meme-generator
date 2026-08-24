@@ -36,6 +36,10 @@ Before running this application, make sure you have:
    - Download Impact.ttf and place in `assets/fonts/Impact.ttf`
    - Falls back to embedded Go Mono Bold if not present
 
+4. **OpenRouter** (optional, alternative to Ollama)
+   - Set the `OPENROUTER_API_KEY` environment variable before starting the server
+   - In the Settings panel, switch Provider to "OpenRouter" and set the text/image model IDs (e.g. `openai/gpt-4o-mini`, `bytedance-seed/seedream-4.5`)
+
 ## Installation
 
 1. Clone or navigate to the project directory:

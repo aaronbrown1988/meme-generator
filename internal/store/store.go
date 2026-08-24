@@ -12,6 +12,14 @@ import (
 	"meme-generator/internal/meme"
 )
 
+var defaultSettings = map[string]string{
+	"system_prompt":          "You are a creative meme generator. Generate images based on the following description:",
+	"caption_system_prompt":  "You are a witty meme caption writer. Generate short, funny top and bottom text for the following meme concept:",
+	"provider":               meme.ProviderOllama,
+	"openrouter_model":       meme.DefaultOpenRouterModel,
+	"openrouter_image_model": meme.DefaultOpenRouterImageModel,
+}
+
 type Store struct {
 	db *sql.DB
 }
@@ -52,8 +60,6 @@ func (s *Store) migrate() error {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
 		);`,
-		`INSERT OR IGNORE INTO settings (key, value)
-		 VALUES ('system_prompt', 'You are a creative meme generator. Generate images based on the following description:');`,
 		// Best-effort migrations for older databases. Errors ignored;
 		// columns may already exist.
 		`ALTER TABLE generations ADD COLUMN top_text TEXT DEFAULT '';`,
@@ -61,6 +67,9 @@ func (s *Store) migrate() error {
 	}
 	for _, q := range queries {
 		s.db.Exec(q)
+	}
+	for key, value := range defaultSettings {
+		s.db.Exec(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, key, value)
 	}
 	return nil
 }
@@ -109,11 +118,11 @@ func (s *Store) MarkProcessingFailed(message string) (int64, error) {
 
 func (s *Store) GetGeneration(id int64) (meme.Generation, error) {
 	var (
-		gen      meme.Generation
-		status   string
-		errMsg   sql.NullString
-		topText  string
-		botText  string
+		gen     meme.Generation
+		status  string
+		errMsg  sql.NullString
+		topText string
+		botText string
 	)
 	err := s.db.QueryRow(
 		`SELECT id, prompt, image_path, top_text, bottom_text, status, error_message, created_at

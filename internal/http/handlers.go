@@ -135,13 +135,8 @@ func (h *Handler) serveImage(w nethttp.ResponseWriter, r *nethttp.Request) {
 }
 
 func (h *Handler) getSettings(w nethttp.ResponseWriter, r *nethttp.Request) {
-	systemPrompt, err := h.store.GetSetting(meme.SystemPromptKey)
-	if err != nil {
-		log.Printf("getSettings: %v", err)
-		systemPrompt = ""
-	}
 	w.Header().Set("Content-Type", "text/html")
-	h.render(w, "settings.html", map[string]interface{}{"SystemPrompt": systemPrompt})
+	h.render(w, "settings.html", h.settingsData(false))
 }
 
 func (h *Handler) updateSettings(w nethttp.ResponseWriter, r *nethttp.Request) {
@@ -149,17 +144,44 @@ func (h *Handler) updateSettings(w nethttp.ResponseWriter, r *nethttp.Request) {
 		nethttp.Error(w, "Method not allowed", nethttp.StatusMethodNotAllowed)
 		return
 	}
-	systemPrompt := r.FormValue("system_prompt")
-	if err := h.store.SetSetting(meme.SystemPromptKey, systemPrompt); err != nil {
-		log.Printf("updateSettings: %v", err)
-		nethttp.Error(w, "Failed to update settings", nethttp.StatusInternalServerError)
-		return
+	fields := map[string]string{
+		meme.ImageSystemPromptKey:    r.FormValue("system_prompt"),
+		meme.CaptionSystemPromptKey:  r.FormValue("caption_system_prompt"),
+		meme.ProviderKey:             r.FormValue("provider"),
+		meme.OpenRouterModelKey:      r.FormValue("openrouter_model"),
+		meme.OpenRouterImageModelKey: r.FormValue("openrouter_image_model"),
+	}
+	for key, value := range fields {
+		if err := h.store.SetSetting(key, value); err != nil {
+			log.Printf("updateSettings: set %s: %v", key, err)
+			nethttp.Error(w, "Failed to update settings", nethttp.StatusInternalServerError)
+			return
+		}
 	}
 	w.Header().Set("Content-Type", "text/html")
-	h.render(w, "settings.html", map[string]interface{}{
-		"SystemPrompt": systemPrompt,
-		"Success":      true,
-	})
+	data := h.settingsData(true)
+	h.render(w, "settings.html", data)
+}
+
+// settingsData loads the current settings for rendering settings.html.
+// Read failures fall back to empty strings; the template renders
+// whatever the store had (which may be the migration defaults).
+func (h *Handler) settingsData(success bool) map[string]interface{} {
+	get := func(key string) string {
+		v, err := h.store.GetSetting(key)
+		if err != nil {
+			log.Printf("settingsData: get %s: %v", key, err)
+		}
+		return v
+	}
+	return map[string]interface{}{
+		"SystemPrompt":         get(meme.ImageSystemPromptKey),
+		"CaptionSystemPrompt":  get(meme.CaptionSystemPromptKey),
+		"Provider":             get(meme.ProviderKey),
+		"OpenRouterModel":      get(meme.OpenRouterModelKey),
+		"OpenRouterImageModel": get(meme.OpenRouterImageModelKey),
+		"Success":              success,
+	}
 }
 
 func (h *Handler) render(w nethttp.ResponseWriter, name string, data interface{}) {

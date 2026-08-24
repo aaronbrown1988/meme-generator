@@ -58,7 +58,7 @@ type CaptionAdapter struct {
 	Err     error
 }
 
-func (a *CaptionAdapter) Write(prompt string) (meme.Caption, error) {
+func (a *CaptionAdapter) Write(prompt, systemPrompt string) (meme.Caption, error) {
 	if a.Err != nil {
 		return meme.Caption{}, a.Err
 	}
