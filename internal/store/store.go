@@ -139,10 +139,18 @@ func (s *Store) GetGeneration(id int64) (meme.Generation, error) {
 	return gen, nil
 }
 
-func (s *Store) ListGenerations(limit int) ([]meme.Generation, error) {
+// CountGenerations returns the total number of generations ever
+// recorded, used to compute how many pages of history exist.
+func (s *Store) CountGenerations() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM generations`).Scan(&count)
+	return count, err
+}
+
+func (s *Store) ListGenerations(limit, offset int) ([]meme.Generation, error) {
 	rows, err := s.db.Query(
 		`SELECT id, prompt, image_path, top_text, bottom_text, status, error_message, created_at
-		 FROM generations ORDER BY created_at DESC LIMIT ?`, limit,
+		 FROM generations ORDER BY created_at DESC LIMIT ? OFFSET ?`, limit, offset,
 	)
 	if err != nil {
 		return nil, err

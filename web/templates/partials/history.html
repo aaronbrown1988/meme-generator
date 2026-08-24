@@ -27,6 +27,20 @@
     </article>
     {{end}}
 </div>
+<nav class="history-pagination" aria-label="History pagination">
+    <button type="button"
+            {{if not .HasNewer}}disabled{{end}}
+            hx-get="/history?page={{.NewerPage}}"
+            hx-target="#history-list"
+            hx-swap="innerHTML">← Newer</button>
+    <span>Page {{.Page}} of {{.TotalPages}}</span>
+    <button type="button"
+            {{if not .HasOlder}}disabled{{end}}
+            hx-get="/history?page={{.OlderPage}}"
+            hx-target="#history-list"
+            hx-swap="innerHTML">Older →</button>
+</nav>
+<input type="hidden" id="history-page" name="page" value="{{.Page}}">
 {{else}}
 <p>No generations yet. Create your first meme above!</p>
 {{end}}

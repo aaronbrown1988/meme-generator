@@ -15,6 +15,11 @@ import (
 	"meme-generator/internal/store"
 )
 
+// historyPageSize is how many generations are shown per page of
+// history, both on initial page load and on each older/newer
+// navigation.
+const historyPageSize = 10
+
 type Handler struct {
 	pipeline *meme.Generator
 	store    *store.Store
@@ -60,12 +65,7 @@ func (h *Handler) home(w nethttp.ResponseWriter, r *nethttp.Request) {
 		nethttp.NotFound(w, r)
 		return
 	}
-	gens, err := h.store.ListGenerations(10)
-	if err != nil {
-		log.Printf("home: list generations: %v", err)
-		gens = nil
-	}
-	h.render(w, "index.html", map[string]interface{}{"Generations": gens})
+	h.render(w, "index.html", h.historyData(1))
 }
 
 func (h *Handler) generate(w nethttp.ResponseWriter, r *nethttp.Request) {
@@ -119,14 +119,44 @@ func (h *Handler) getGeneration(w nethttp.ResponseWriter, r *nethttp.Request) {
 }
 
 func (h *Handler) history(w nethttp.ResponseWriter, r *nethttp.Request) {
-	gens, err := h.store.ListGenerations(10)
-	if err != nil {
-		log.Printf("history: list generations: %v", err)
-		nethttp.Error(w, "Failed to fetch history", nethttp.StatusInternalServerError)
-		return
-	}
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	w.Header().Set("Content-Type", "text/html")
-	h.render(w, "history.html", map[string]interface{}{"Generations": gens})
+	h.render(w, "history.html", h.historyData(page))
+}
+
+// historyData loads one page of generation history along with the
+// pagination metadata history.html needs to render its Older/Newer
+// controls. page is clamped to [1, totalPages].
+func (h *Handler) historyData(page int) map[string]interface{} {
+	total, err := h.store.CountGenerations()
+	if err != nil {
+		log.Printf("historyData: count generations: %v", err)
+	}
+	totalPages := (total + historyPageSize - 1) / historyPageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page < 1 {
+		page = 1
+	} else if page > totalPages {
+		page = totalPages
+	}
+
+	gens, err := h.store.ListGenerations(historyPageSize, (page-1)*historyPageSize)
+	if err != nil {
+		log.Printf("historyData: list generations: %v", err)
+		gens = nil
+	}
+
+	return map[string]interface{}{
+		"Generations": gens,
+		"Page":        page,
+		"TotalPages":  totalPages,
+		"HasNewer":    page > 1,
+		"HasOlder":    page < totalPages,
+		"NewerPage":   page - 1,
+		"OlderPage":   page + 1,
+	}
 }
 
 func (h *Handler) serveImage(w nethttp.ResponseWriter, r *nethttp.Request) {
