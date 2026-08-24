@@ -139,6 +139,24 @@ hgroup {
     border-radius: var(--border-radius);
 }
 
+.history-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.history-pagination button {
+    width: auto;
+    margin: 0;
+}
+
+.history-pagination span {
+    color: var(--muted-color);
+    font-size: 0.9rem;
+}
+
 footer {
     text-align: center;
     margin-top: 4rem;

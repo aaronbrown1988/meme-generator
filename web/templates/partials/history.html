@@ -17,16 +17,30 @@
             <figure>
                 <img src="/images/{{.ImagePath}}" alt="{{.Prompt}}" loading="lazy">
             </figure>
-            {{if or .TopText .BottomText}}
+            {{if or .Caption.Top .Caption.Bottom}}
             <div class="meme-text-info">
-                {{if .TopText}}<small>Top: "{{.TopText}}"</small><br>{{end}}
-                {{if .BottomText}}<small>Bottom: "{{.BottomText}}"</small>{{end}}
+                {{if .Caption.Top}}<small>Top: "{{.Caption.Top}}"</small><br>{{end}}
+                {{if .Caption.Bottom}}<small>Bottom: "{{.Caption.Bottom}}"</small>{{end}}
             </div>
             {{end}}
         {{end}}
     </article>
     {{end}}
 </div>
+<nav class="history-pagination" aria-label="History pagination">
+    <button type="button"
+            {{if not .HasNewer}}disabled{{end}}
+            hx-get="/history?page={{.NewerPage}}"
+            hx-target="#history-list"
+            hx-swap="innerHTML">← Newer</button>
+    <span>Page {{.Page}} of {{.TotalPages}}</span>
+    <button type="button"
+            {{if not .HasOlder}}disabled{{end}}
+            hx-get="/history?page={{.OlderPage}}"
+            hx-target="#history-list"
+            hx-swap="innerHTML">Older →</button>
+</nav>
+<input type="hidden" id="history-page" name="page" value="{{.Page}}">
 {{else}}
 <p>No generations yet. Create your first meme above!</p>
 {{end}}

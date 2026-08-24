@@ -5,18 +5,58 @@
     </div>
     {{end}}
     
-    <form hx-post="/settings/update" 
+    <form hx-post="/settings/update"
           hx-target="#settings-modal-content"
           hx-swap="innerHTML">
         <label for="system_prompt">
-            System Prompt:
-            <small>This text will be prepended to every meme generation request</small>
-            <textarea id="system_prompt" 
-                      name="system_prompt" 
-                      rows="5" 
+            Image System Prompt:
+            <small>This text will be prepended to every image generation request</small>
+            <textarea id="system_prompt"
+                      name="system_prompt"
+                      rows="5"
                       placeholder="e.g., You are a creative meme generator..."
                       >{{.SystemPrompt}}</textarea>
         </label>
+
+        <label for="caption_system_prompt">
+            Caption System Prompt:
+            <small>This text will be prepended to every caption (top/bottom text) generation request</small>
+            <textarea id="caption_system_prompt"
+                      name="caption_system_prompt"
+                      rows="5"
+                      placeholder="e.g., You are a witty meme caption writer..."
+                      >{{.CaptionSystemPrompt}}</textarea>
+        </label>
+
+        <label for="provider">
+            Provider:
+            <small>Which LLM backend generates captions and images</small>
+            <select id="provider" name="provider">
+                <option value="ollama" {{if eq .Provider "ollama"}}selected{{end}}>Ollama (local)</option>
+                <option value="openrouter" {{if eq .Provider "openrouter"}}selected{{end}}>OpenRouter</option>
+            </select>
+        </label>
+
+        <label for="openrouter_model">
+            OpenRouter Text Model:
+            <small>Used for caption generation when Provider is OpenRouter. Requires OPENROUTER_API_KEY to be set on the server.</small>
+            <input type="text"
+                   id="openrouter_model"
+                   name="openrouter_model"
+                   placeholder="e.g., openai/gpt-4o-mini"
+                   value="{{.OpenRouterModel}}">
+        </label>
+
+        <label for="openrouter_image_model">
+            OpenRouter Image Model:
+            <small>Used for image generation when Provider is OpenRouter</small>
+            <input type="text"
+                   id="openrouter_image_model"
+                   name="openrouter_image_model"
+                   placeholder="e.g., bytedance-seed/seedream-4.5"
+                   value="{{.OpenRouterImageModel}}">
+        </label>
+
         <button type="submit">Save Settings</button>
     </form>
 </div>

@@ -1,12 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
-	"meme-generator/internal/db"
-	"meme-generator/internal/handlers"
-	"meme-generator/internal/ollama"
-	"net/http"
+	nethttp "net/http"
 	"os"
+	"os/signal"
+	"syscall"
+
+	orsdk "github.com/OpenRouterTeam/go-sdk"
+
+	"meme-generator/internal/http"
+	"meme-generator/internal/llm/ollama"
+	"meme-generator/internal/llm/router"
+	"meme-generator/internal/meme"
+	"meme-generator/internal/store"
 )
 
 func main() {
@@ -19,33 +27,61 @@ func main() {
 	)
 
 	if err := os.MkdirAll(generatedDir, 0755); err != nil {
-		log.Fatalf("Failed to create generated directory: %v", err)
+		log.Fatalf("create generated directory: %v", err)
 	}
 
-	database, err := db.New(dbPath)
+	st, err := store.Open(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatalf("open store: %v", err)
 	}
-	defer database.Close()
+	defer st.Close()
 
-	ollamaClient := ollama.NewClient(generatedDir)
+	orClient := orsdk.New(orsdk.WithSecurity(os.Getenv("OPENROUTER_API_KEY")))
 
-	handler, err := handlers.New(database, ollamaClient, templatesDir, generatedDir)
+	pipeline := meme.NewGenerator(meme.Config{
+		Store: st,
+		Images: &router.ImageGenerator{
+			Settings:   st,
+			Ollama:     ollama.NewImageAdapter(generatedDir),
+			OpenRouter: orClient,
+			OutputDir:  generatedDir,
+		},
+		Captions: &router.CaptionWriter{
+			Settings:   st,
+			Ollama:     ollama.NewCaptionAdapter(),
+			OpenRouter: orClient,
+		},
+		ImageDir: generatedDir,
+	})
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	go func() {
+		if err := pipeline.Start(ctx); err != nil {
+			log.Printf("pipeline: %v", err)
+			cancel()
+		}
+	}()
+
+	handler, err := http.New(pipeline, st, templatesDir, generatedDir)
 	if err != nil {
-		log.Fatalf("Failed to initialize handlers: %v", err)
+		log.Fatalf("init handlers: %v", err)
 	}
 
-	http.HandleFunc("/", handler.Home)
-	http.HandleFunc("/generate", handler.Generate)
-	http.HandleFunc("/generation", handler.GetGeneration)
-	http.HandleFunc("/history", handler.History)
-	http.HandleFunc("/settings", handler.GetSettings)
-	http.HandleFunc("/settings/update", handler.UpdateSettings)
-	http.Handle("/images/", http.StripPrefix("/images/", http.HandlerFunc(handler.ServeImage)))
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+	mux := nethttp.NewServeMux()
+	handler.Register(mux, staticDir)
 
-	log.Printf("Server starting on http://localhost%s", port)
-	if err := http.ListenAndServe(port, nil); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	server := &nethttp.Server{Addr: port, Handler: mux}
+
+	go func() {
+		<-ctx.Done()
+		log.Printf("shutting down")
+		server.Shutdown(context.Background())
+	}()
+
+	log.Printf("server starting on http://localhost%s", port)
+	if err := server.ListenAndServe(); err != nil && err != nethttp.ErrServerClosed {
+		log.Fatalf("server: %v", err)
 	}
 }

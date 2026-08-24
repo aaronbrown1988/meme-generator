@@ -52,9 +52,10 @@
 
         <section class="history">
             <h2>Recent Generations</h2>
-            <div id="history-list" 
-                 hx-get="/history" 
+            <div id="history-list"
+                 hx-get="/history"
                  hx-trigger="load, every 5s"
+                 hx-include="#history-page"
                  hx-swap="innerHTML">
                 {{template "history.html" .}}
             </div>
